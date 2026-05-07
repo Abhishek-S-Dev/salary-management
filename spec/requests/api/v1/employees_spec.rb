@@ -32,6 +32,22 @@ RSpec.describe "Api::V1::Employees", type: :request do
       expect(body["meta"]["total_count"]).to eq(21)
       expect(body["meta"]["total_pages"]).to eq(3)
     end
+
+    it "filters employees when q matches name or email" do
+      create(:employee, first_name: "Zara", last_name: "Amin", email: "zara@example.com")
+      create(:employee, first_name: "Bob", last_name: "Builder", email: "bob@example.com")
+
+      get "/api/v1/employees", params: { q: "zara" }
+
+      expect(response).to have_http_status(:ok)
+      data = response.parsed_body["data"]
+      expect(data.size).to eq(1)
+      expect(data.first["email"]).to eq("zara@example.com")
+
+      get "/api/v1/employees", params: { q: "bob@example" }
+
+      expect(response.parsed_body["data"].size).to eq(1)
+    end
   end
 
   describe "POST /api/v1/employees" do
