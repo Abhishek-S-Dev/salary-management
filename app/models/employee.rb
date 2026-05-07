@@ -1,4 +1,6 @@
 class Employee < ApplicationRecord
+  belongs_to :department
+
   has_many :payroll_entries, dependent: :destroy
 
   scope :matching_query, lambda { |raw|
@@ -9,7 +11,7 @@ class Employee < ApplicationRecord
     where("employees.first_name ILIKE ? OR employees.last_name ILIKE ? OR employees.email ILIKE ?", pattern, pattern, pattern)
   }
 
-  validates :first_name, :last_name, :email, :base_salary, presence: true
+  validates :first_name, :last_name, :email, :department_id, :base_salary, presence: true
   validates :email, uniqueness: { case_sensitive: false }, format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :base_salary, numericality: { greater_than: 0 }
 end
