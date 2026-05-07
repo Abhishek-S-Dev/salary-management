@@ -2,15 +2,35 @@ require "rails_helper"
 
 RSpec.describe "Api::V1::Employees", type: :request do
   describe "GET /api/v1/employees" do
-    it "returns employees as JSON" do
+    it "returns a paginated envelope with meta" do
       create(:employee, first_name: "Ada", last_name: "Lovelace")
 
       get "/api/v1/employees"
 
       expect(response).to have_http_status(:ok)
       body = response.parsed_body
-      expect(body).to be_an(Array)
-      expect(body.first["first_name"]).to eq("Ada")
+      expect(body["data"]).to be_an(Array)
+      expect(body["data"].first["first_name"]).to eq("Ada")
+      expect(body["meta"]).to include(
+        "page" => 1,
+        "per_page" => 20,
+        "total_count" => 1,
+        "total_pages" => 1
+      )
+    end
+
+    it "paginates using page and per_page" do
+      21.times { create(:employee) }
+
+      get "/api/v1/employees", params: { page: 2, per_page: 10 }
+
+      expect(response).to have_http_status(:ok)
+      body = response.parsed_body
+      expect(body["data"].size).to eq(10)
+      expect(body["meta"]["page"]).to eq(2)
+      expect(body["meta"]["per_page"]).to eq(10)
+      expect(body["meta"]["total_count"]).to eq(21)
+      expect(body["meta"]["total_pages"]).to eq(3)
     end
   end
 
