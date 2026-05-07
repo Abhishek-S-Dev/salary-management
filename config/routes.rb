@@ -3,7 +3,12 @@ Rails.application.routes.draw do
 
   namespace :api do
     namespace :v1 do
+      get "health", to: "health#show"
+      resources :departments, only: %i[index]
       resources :employees, only: %i[index show create update destroy] do
+        collection do
+          get :export
+        end
         resources :payroll_entries, only: %i[index show create update destroy]
       end
     end

@@ -1,8 +1,12 @@
+engineering = Department.find_by!(name: "Engineering")
+research = Department.find_by!(name: "Research")
+
 ada = Employee.find_or_initialize_by(email: "ada.lovelace@example.com")
 ada.assign_attributes(
   first_name: "Ada",
   last_name: "Lovelace",
-  department: "Engineering",
+  department_id: engineering.id,
+  department_note: "Engineering lead",
   designation: "Lead",
   base_salary: 120_000
 )
@@ -12,7 +16,8 @@ alan = Employee.find_or_initialize_by(email: "alan.turing@example.com")
 alan.assign_attributes(
   first_name: "Alan",
   last_name: "Turing",
-  department: "Research",
+  department_id: research.id,
+  department_note: "Research",
   designation: "Scientist",
   base_salary: 95_000
 )
