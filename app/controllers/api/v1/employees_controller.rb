@@ -4,8 +4,21 @@ module Api
       before_action :set_employee, only: %i[show update destroy]
 
       def index
-        employees = Employee.order(:last_name, :first_name)
-        render json: employees.map { |e| employee_payload(e) }
+        scope = Employee.order(:last_name, :first_name)
+        page = [params.fetch(:page, 1).to_i, 1].max
+        per_raw = params.fetch(:per_page, 20).to_i
+        per_page = [[per_raw, 1].max, 100].min
+        total_count = scope.count
+        employees = scope.offset((page - 1) * per_page).limit(per_page)
+        render json: {
+          data: employees.map { |e| employee_payload(e) },
+          meta: {
+            page: page,
+            per_page: per_page,
+            total_count: total_count,
+            total_pages: per_page.positive? ? (total_count.to_f / per_page).ceil : 0
+          }
+        }
       end
 
       def show
