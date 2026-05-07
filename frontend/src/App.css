@@ -52,6 +52,18 @@ h1 {
   color: #9fb4d6;
 }
 
+.pill.ok {
+  border-color: #2d6a4f;
+  background: rgba(45, 106, 79, 0.28);
+  color: #c8f5dc;
+}
+
+.pill.bad {
+  border-color: #8f3340;
+  background: rgba(143, 51, 64, 0.22);
+  color: #ffd7dc;
+}
+
 .banner {
   padding: 0.85rem 1rem;
   border-radius: 10px;
@@ -139,6 +151,44 @@ input {
 input:focus {
   outline: 2px solid #5ca8ff;
   outline-offset: 1px;
+}
+
+select {
+  border-radius: 10px;
+  border: 1px solid #2d3d61;
+  background: #0c1426;
+  color: #f5f7ff;
+  padding: 0.55rem 0.65rem;
+}
+
+select:focus {
+  outline: 2px solid #5ca8ff;
+  outline-offset: 1px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.search-input {
+  min-width: 180px;
+  flex: 1 1 200px;
+}
+
+.meta-line {
+  margin-top: 0.35rem;
+}
+
+.pager {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
 }
 
 .form.inline {
