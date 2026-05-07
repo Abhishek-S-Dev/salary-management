@@ -51,6 +51,7 @@ docker compose up --build
 
 - React: http://localhost:5173  
 - API: http://localhost:3000  
+- Postgres is **not** published on the host (no port clashes with local Postgres); Rails connects inside Compose via `db:5432`. To open `psql` from your machine: `docker compose exec db psql -U postgres salarymanagement_development`.
 
 The Vite container sets `VITE_PROXY_API=http://api:3000` so browser requests to `/api` reach the Rails service. Rails allows CORS from `FRONTEND_ORIGIN` (default `http://localhost:5173`).
 
