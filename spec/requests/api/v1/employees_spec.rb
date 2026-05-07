@@ -11,6 +11,7 @@ RSpec.describe "Api::V1::Employees", type: :request do
       body = response.parsed_body
       expect(body["data"]).to be_an(Array)
       expect(body["data"].first["first_name"]).to eq("Ada")
+      expect(body["data"].first["department"]).to include("id", "name")
       expect(body["meta"]).to include(
         "page" => 1,
         "per_page" => 20,
@@ -50,14 +51,39 @@ RSpec.describe "Api::V1::Employees", type: :request do
     end
   end
 
+  describe "GET /api/v1/employees/export" do
+    it "returns a CSV attachment of employees" do
+      dept = create(:department, name: "Research Wing")
+      create(
+        :employee,
+        first_name: "Ada",
+        last_name: "Lovelace",
+        email: "ada@example.com",
+        department: dept,
+        department_note: "Lab A",
+        designation: "Scientist",
+        base_salary: 88_000
+      )
+
+      get "/api/v1/employees/export"
+
+      expect(response).to have_http_status(:ok)
+      expect(response.media_type).to eq("text/csv")
+      expect(response.headers["Content-Disposition"]).to include("attachment")
+      expect(response.body).to include("email", "ada@example.com", "Research Wing", "Lab A")
+    end
+  end
+
   describe "POST /api/v1/employees" do
+    let(:research) { create(:department, name: "Research") }
     let(:params) do
       {
         employee: {
           first_name: "Alan",
           last_name: "Turing",
           email: "alan@example.com",
-          department: "Research",
+          department_id: research.id,
+          department_note: "Building 2",
           designation: "Scientist",
           base_salary: 90_000
         }
@@ -71,11 +97,21 @@ RSpec.describe "Api::V1::Employees", type: :request do
 
       expect(response).to have_http_status(:created)
       expect(response.parsed_body["email"]).to eq("alan@example.com")
+      expect(response.parsed_body["department_id"]).to eq(research.id)
     end
 
     it "returns errors when invalid" do
+      dept = create(:department)
       post "/api/v1/employees",
-           params: { employee: { first_name: "", last_name: "", email: "bad", base_salary: -1 } }.to_json,
+           params: {
+             employee: {
+               first_name: "",
+               last_name: "",
+               email: "bad",
+               base_salary: -1,
+               department_id: dept.id
+             }
+           }.to_json,
            headers: { "CONTENT_TYPE" => "application/json" }
 
       expect(response).to have_http_status(:unprocessable_entity)
