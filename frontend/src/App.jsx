@@ -4,6 +4,9 @@ import {
   createPayrollEntry,
   deleteEmployee,
   deletePayrollEntry,
+  downloadEmployeesCsv,
+  fetchHealth,
+  listDepartments,
   listEmployees,
   listPayrollEntries,
   updateEmployee,
@@ -20,13 +23,24 @@ const emptyEmployeeForm = {
   first_name: '',
   last_name: '',
   email: '',
-  department: '',
+  department_id: '',
+  department_note: '',
   designation: '',
   base_salary: '',
 }
 
 function App() {
   const [employees, setEmployees] = useState([])
+  const [listMeta, setListMeta] = useState({
+    page: 1,
+    per_page: 20,
+    total_count: 0,
+    total_pages: 0,
+  })
+  const [listParams, setListParams] = useState({ page: 1, per_page: 20, q: '' })
+  const [searchDraft, setSearchDraft] = useState('')
+  const [departments, setDepartments] = useState([])
+  const [healthOk, setHealthOk] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [selectedId, setSelectedId] = useState(null)
@@ -42,9 +56,47 @@ function App() {
 
   const refreshEmployees = useCallback(async () => {
     setError(null)
-    const rows = await listEmployees()
-    setEmployees(rows)
-    return rows
+    const envelope = await listEmployees(listParams)
+    setEmployees(envelope.data || [])
+    setListMeta(
+      envelope.meta ?? {
+        page: listParams.page,
+        per_page: listParams.per_page,
+        total_count: 0,
+        total_pages: 0,
+      },
+    )
+    return envelope.data
+  }, [listParams])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const rows = await listDepartments()
+        if (!cancelled) setDepartments(rows)
+      } catch {
+        if (!cancelled) setDepartments([])
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const h = await fetchHealth()
+        if (!cancelled) setHealthOk(Boolean(h?.ok))
+      } catch {
+        if (!cancelled) setHealthOk(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   useEffect(() => {
@@ -68,6 +120,17 @@ function App() {
     () => employees.find((e) => String(e.id) === String(selectedId)) || null,
     [employees, selectedId],
   )
+
+  useEffect(() => {
+    if (!selected) return
+    setPayrollForm((p) => ({
+      ...p,
+      gross_amount:
+        selected.base_salary != null && selected.base_salary !== ''
+          ? String(selected.base_salary)
+          : '',
+    }))
+  }, [selected])
 
   const loadPayrolls = useCallback(async (employeeId) => {
     if (!employeeId) {
@@ -96,11 +159,25 @@ function App() {
     }
   }, [selectedId, loadPayrolls])
 
+  function applySearch() {
+    setListParams((p) => ({ ...p, page: 1, q: searchDraft.trim() }))
+  }
+
+  async function handleExportCsv() {
+    setError(null)
+    try {
+      await downloadEmployeesCsv()
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
   async function handleSubmitEmployee(e) {
     e.preventDefault()
     setError(null)
     const payload = {
       ...employeeForm,
+      department_id: Number(employeeForm.department_id),
       base_salary: Number(employeeForm.base_salary),
     }
     try {
@@ -135,7 +212,8 @@ function App() {
       first_name: emp.first_name,
       last_name: emp.last_name,
       email: emp.email,
-      department: emp.department || '',
+      department_id: emp.department_id != null ? String(emp.department_id) : '',
+      department_note: emp.department_note || '',
       designation: emp.designation || '',
       base_salary: String(emp.base_salary),
     })
@@ -188,6 +266,13 @@ function App() {
         <div className="pill-row">
           <span className="pill">API: /api/v1</span>
           <span className="pill ghost">Vite proxy → Rails</span>
+          {healthOk === true ? (
+            <span className="pill ok">DB health OK</span>
+          ) : healthOk === false ? (
+            <span className="pill bad">DB health fail</span>
+          ) : (
+            <span className="pill ghost">Checking health…</span>
+          )}
         </div>
       </header>
 
@@ -247,12 +332,29 @@ function App() {
                   }
                 />
               </label>
-              <label>
+              <label className="field-span-2">
                 Department
-                <input
-                  value={employeeForm.department}
+                <select
+                  required
+                  value={employeeForm.department_id}
                   onChange={(ev) =>
-                    setEmployeeForm((f) => ({ ...f, department: ev.target.value }))
+                    setEmployeeForm((f) => ({ ...f, department_id: ev.target.value }))
+                  }
+                >
+                  <option value="">Select…</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field-span-2">
+                Department note (optional)
+                <input
+                  value={employeeForm.department_note}
+                  onChange={(ev) =>
+                    setEmployeeForm((f) => ({ ...f, department_note: ev.target.value }))
                   }
                 />
               </label>
@@ -288,14 +390,52 @@ function App() {
         <section className="card">
           <div className="card-head">
             <h2>Employees</h2>
-            <button className="btn ghost" type="button" onClick={() => refreshEmployees()}>
-              Refresh
+            <div className="toolbar">
+              <input
+                className="search-input"
+                type="search"
+                placeholder="Search name or email…"
+                value={searchDraft}
+                onChange={(ev) => setSearchDraft(ev.target.value)}
+                aria-label="Search employees"
+              />
+              <button className="btn ghost" type="button" onClick={() => applySearch()}>
+                Apply search
+              </button>
+              <button className="btn ghost" type="button" onClick={() => refreshEmployees()}>
+                Refresh
+              </button>
+              <button className="btn ghost" type="button" onClick={() => handleExportCsv()}>
+                Export CSV
+              </button>
+            </div>
+            <p className="muted tight meta-line">
+              Page {listMeta.page} of {listMeta.total_pages || 1} · {listMeta.total_count} employees
+              {listParams.q ? ` · filtered “${listParams.q}”` : ''}
+            </p>
+          </div>
+          <div className="pager">
+            <button
+              type="button"
+              className="btn tiny"
+              disabled={loading || listMeta.page <= 1}
+              onClick={() => setListParams((p) => ({ ...p, page: Math.max(1, p.page - 1) }))}
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              className="btn tiny"
+              disabled={loading || listMeta.page >= listMeta.total_pages}
+              onClick={() => setListParams((p) => ({ ...p, page: p.page + 1 }))}
+            >
+              Next
             </button>
           </div>
           {loading ? (
             <p className="muted">Loading roster…</p>
           ) : employees.length === 0 ? (
-            <p className="muted">No employees yet. Add one on the left.</p>
+            <p className="muted">No employees on this page. Adjust search or add one.</p>
           ) : (
             <div className="table-wrap">
               <table className="table">
@@ -303,6 +443,7 @@ function App() {
                   <tr>
                     <th>Name</th>
                     <th>Email</th>
+                    <th>Dept</th>
                     <th>Base</th>
                     <th />
                   </tr>
@@ -323,6 +464,7 @@ function App() {
                         </button>
                       </td>
                       <td>{emp.email}</td>
+                      <td>{emp.department?.name ?? '—'}</td>
                       <td>{money.format(Number(emp.base_salary))}</td>
                       <td className="actions">
                         <button type="button" className="btn tiny" onClick={() => startEdit(emp)}>
