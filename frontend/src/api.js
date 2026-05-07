@@ -1,5 +1,15 @@
 const prefix = import.meta.env.VITE_API_PREFIX ?? ''
 
+function buildQuery(params) {
+  const qs = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') return
+    qs.set(key, String(value))
+  })
+  const s = qs.toString()
+  return s ? `?${s}` : ''
+}
+
 async function request(path, options = {}) {
   const url = `${prefix}${path}`
   const headers = {
@@ -33,8 +43,32 @@ async function request(path, options = {}) {
   return data
 }
 
-export function listEmployees() {
-  return request('/api/v1/employees')
+export function listEmployees(opts = {}) {
+  const { page = 1, per_page = 20, q = '' } = opts
+  return request(`/api/v1/employees${buildQuery({ page, per_page, q })}`)
+}
+
+export function listDepartments() {
+  return request('/api/v1/departments')
+}
+
+export async function fetchHealth() {
+  return request('/api/v1/health')
+}
+
+export async function downloadEmployeesCsv() {
+  const url = `${prefix}/api/v1/employees/export`
+  const res = await fetch(url, { headers: { Accept: 'text/csv' } })
+  if (!res.ok) {
+    throw new Error(res.statusText || 'Export failed')
+  }
+  const blob = await res.blob()
+  const objectUrl = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = objectUrl
+  anchor.download = `employees-${new Date().toISOString().slice(0, 10)}.csv`
+  anchor.click()
+  URL.revokeObjectURL(objectUrl)
 }
 
 export function createEmployee(payload) {
