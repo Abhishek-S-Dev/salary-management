@@ -13,13 +13,17 @@ Rails 8 **JSON API** + **React** (Vite) client for tracking employees and monthl
 
 | Method | Path | Description |
 | ------ | ---- | ----------- |
-| GET | `/api/v1/employees` | List employees |
-| POST | `/api/v1/employees` | Create (`employee` JSON root) |
+| GET | `/api/v1/employees` | Paginated list. Query: `page`, `per_page` (max 100), optional `q` (matches first/last name or email). JSON shape: `{ "data": [...], "meta": { "page", "per_page", "total_count", "total_pages" } }`. Each employee may include nested `"department": { "id", "name" }`. |
+| GET | `/api/v1/employees/export` | Download all employees as CSV (`text/csv`). |
+| POST | `/api/v1/employees` | Create (`employee` JSON root). Uses `department_id` (FK) and optional string `department_note`. |
 | GET/PATCH/DELETE | `/api/v1/employees/:id` | Show / update / delete |
+| GET | `/api/v1/departments` | List departments `{ "id", "name" }` for selects |
 | GET | `/api/v1/employees/:id/payroll_entries` | List payroll rows |
 | POST | `/api/v1/employees/:id/payroll_entries` | Create (`payroll_entry` root: year, month, gross, deductions). Net pay is derived server-side. |
 
-Health check: `GET /up`
+Rails load balancer ping: `GET /up`  
+
+JSON DB health (API consumers): `GET /api/v1/health` — `{ "ok": true/false, "database": "connected"|"error" }`
 
 ## Local development (without Docker)
 
