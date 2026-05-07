@@ -1,5 +1,3 @@
-# Sample data for local demos (idempotent).
-
 ada = Employee.find_or_initialize_by(email: "ada.lovelace@example.com")
 ada.assign_attributes(
   first_name: "Ada",
